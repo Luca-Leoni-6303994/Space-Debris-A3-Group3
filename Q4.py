@@ -6,8 +6,8 @@ from scipy.stats import gaussian_kde
 from tudatpy.astro import element_conversion
 
 _, measurements_data, sensor_parameters = read_measurement_file("data/group3/q4_meas_iod_99003.pkl")
+
 bodies = create_simulation_bodies()
-print(measurements_data)
 
 range_measurements_nominal = np.array([Yk[0] for Yk in measurements_data['Yk_list']])
 RA_measurements_nominal = np.array([Yk[1] for Yk in measurements_data['Yk_list']])
@@ -15,6 +15,11 @@ DEC_measurements_nominal = np.array([Yk[2] for Yk in measurements_data['Yk_list'
 times = np.array([tk for tk in measurements_data['tk_list']])
 
 radar_position = np.array([Yk[:3] for Yk in sensor_parameters['sensor_ecef']])
+earth_rotation_model = bodies.get("Earth").rotation_model
+rotation_initial = earth_rotation_model.body_fixed_to_inertial_rotation(times[0])
+rotation_final = earth_rotation_model.body_fixed_to_inertial_rotation(times[1])
+radar_position_eci_1 = rotation_initial @ radar_position
+radar_position_eci_2 = rotation_initial @ radar_position
 sigma_range = 10
 sigma_RA = 0.0017453292519943296
 sigma_DEC = 0.0017453292519943296
@@ -27,7 +32,7 @@ range_measurements = np.empty_like(range_measurements_nominal)
 RA_measurements = np.empty_like(RA_measurements_nominal)
 DEC_measurements = np.empty_like(DEC_measurements_nominal)
 
-nb_montecarlo_iteration = 1000
+nb_montecarlo_iteration = 10000
 
 montecarlo_initial_state = np.zeros((nb_montecarlo_iteration,6))
 montecarlo_final_state = np.zeros((nb_montecarlo_iteration,6))
@@ -62,24 +67,19 @@ for montecarlo_iteration in range(nb_montecarlo_iteration):
 
     # Retrieve the corresponding initial and final state
 
-    x1_ecef = radar_position[0] + range_measurements[0] * np.cos(RA_measurements[0]) * np.cos(DEC_measurements[0])
-    x2_ecef = radar_position[0] + range_measurements[1] * np.cos(RA_measurements[1]) * np.cos(DEC_measurements[1])
-    y1_ecef = radar_position[1] + range_measurements[0] * np.sin(RA_measurements[0]) * np.cos(DEC_measurements[0])
-    y2_ecef = radar_position[1] + range_measurements[1] * np.sin(RA_measurements[1]) * np.cos(DEC_measurements[1])
-    z1_ecef = radar_position[2] + range_measurements[0] * np.sin(DEC_measurements[0])
-    z2_ecef = radar_position[2] + range_measurements[1] * np.sin(DEC_measurements[1])
+
+    x1_ecef = radar_position_eci_1[0] + range_measurements[0] * np.cos(RA_measurements[0]) * np.cos(DEC_measurements[0])
+    x2_ecef = radar_position_eci_2[0] + range_measurements[1] * np.cos(RA_measurements[1]) * np.cos(DEC_measurements[1])
+    y1_ecef = radar_position_eci_1[1] + range_measurements[0] * np.sin(RA_measurements[0]) * np.cos(DEC_measurements[0])
+    y2_ecef = radar_position_eci_2[1] + range_measurements[1] * np.sin(RA_measurements[1]) * np.cos(DEC_measurements[1])
+    z1_ecef = radar_position_eci_1[2] + range_measurements[0] * np.sin(DEC_measurements[0])
+    z2_ecef = radar_position_eci_2[2] + range_measurements[1] * np.sin(DEC_measurements[1])
 
     initial_state_ecef = np.array([x1_ecef, y1_ecef, z1_ecef]).flatten()
     final_state_ecef = np.array([x2_ecef, y2_ecef, z2_ecef]).flatten()
 
-    # Convert to ECI
-
-    earth_rotation_model = bodies.get("Earth").rotation_model
-    rotation_initial = earth_rotation_model.body_fixed_to_inertial_rotation(times[0])
-    rotation_final = earth_rotation_model.body_fixed_to_inertial_rotation(times[1])
-
-    initial_state = rotation_initial @ initial_state_ecef
-    final_state = rotation_final @ final_state_ecef
+    initial_state = initial_state_ecef
+    final_state = final_state_ecef
 
     # Solve the Lambert Problem
 
