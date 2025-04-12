@@ -199,17 +199,36 @@ def get_perturbed_propagator_settings(
 
     # Define accelerations acting on vehicle.
     acceleration_settings_on_vehicle = dict(
+        Earth =
+        [
+            propagation_setup.acceleration.spherical_harmonic_gravity(10, 10),
+            propagation_setup.acceleration.aerodynamic()
+        ],
         Sun =
         [
             propagation_setup.acceleration.point_mass_gravity(),
             propagation_setup.acceleration.radiation_pressure()
         ],
-        Earth=[propagation_setup.acceleration.point_mass_gravity()],
-        Venus=[propagation_setup.acceleration.point_mass_gravity()],
-        Moon=[propagation_setup.acceleration.point_mass_gravity()],
-        Saturn=[propagation_setup.acceleration.point_mass_gravity()],
-        Jupiter=[propagation_setup.acceleration.point_mass_gravity()],
-        Mars=[propagation_setup.acceleration.point_mass_gravity()],
+        Jupiter =
+        [
+            propagation_setup.acceleration.spherical_harmonic_gravity(4, 0)
+        ],
+        Moon = 
+        [
+            propagation_setup.acceleration.point_mass_gravity()
+        ],
+        Saturn = 
+        [
+            propagation_setup.acceleration.point_mass_gravity()
+        ],
+        Mars = 
+        [
+            propagation_setup.acceleration.point_mass_gravity()
+        ],
+        Venus = 
+        [
+            propagation_setup.acceleration.point_mass_gravity()
+        ]
     )
 
     # Create global accelerations dictionary.
@@ -266,13 +285,16 @@ def create_simulation_bodies() -> environment.SystemOfBodies:
     bodies_to_create, global_frame_origin, global_frame_orientation
     )   
     body_settings.add_empty_settings("Spacecraft")
-    reference_area_radiation = 2.028448  
-    radiation_pressure_coefficient = 1.2
-    radiation_pressure_settings = environment_setup.radiation_pressure.cannonball_radiation_target(reference_area_radiation, radiation_pressure_coefficient)
+    reference_area_radiation = 1.715124 
+    radiation_pressure_coefficient = 1.3
+    occulting_body_dict = dict()
+    occulting_body_dict["Sun"] = ["Earth"]
+    radiation_pressure_settings = environment_setup.radiation_pressure.cannonball_radiation_target(reference_area_radiation, radiation_pressure_coefficient, occulting_body_dict)
     body_settings.get("Spacecraft").radiation_pressure_target_settings = radiation_pressure_settings
+    aero_coefficient_settings = environment_setup.aerodynamic_coefficients.constant(1.715124, [2.2, 0, 0])
+    body_settings.get("Spacecraft").aerodynamic_coefficient_settings = aero_coefficient_settings
     bodies = environment_setup.create_system_of_bodies(body_settings)
-    bodies.get_body("Spacecraft").mass = 547.268267 # Mass 547.268267 kg
-
+    bodies.get_body("Spacecraft").mass = 260.931020 # Mass 260.931020 kg
     return bodies
 
 def compute_bootstrap_CI(data, num_samples):
